@@ -986,6 +986,41 @@ describe('POST /api/v1/contents', () => {
       expect(Date.parse(responseBody.updated_at)).not.toBeNaN();
     });
 
+test('"child" content with "parent_id" that is "deleted"', async () => {
+
+  const contentsRequestBuilder = new RequestBuilder('/api/v1/contents');
+  const defaultUser = await contentsRequestBuilder.buildUser();
+
+  const { responseBody: rootContent } = await contentsRequestBuilder.post({
+    title: 'Post Pai que será deletado',
+    body: 'Body do post pai.',
+    status: 'published',
+  });
+
+
+  await orchestrator.updateContent(rootContent.id, {
+    status: 'deleted',
+  });
+
+
+  const { response, responseBody } = await contentsRequestBuilder.post({
+    body: 'Não deveria conseguir postar, pois o pai está deletado.',
+    parent_id: rootContent.id,
+    status: 'published',
+  });
+
+  expect.soft(response.status).toBe(400);
+  expect(responseBody).toStrictEqual({
+    status_code: 400,
+    name: 'ValidationError',
+    message: 'Você está tentando criar um comentário em um conteúdo que não existe.',
+    action: 'Utilize um "parent_id" que aponte para um conteúdo existente.',
+    error_location_code: 'MODEL:CONTENT:CHECK_IF_PARENT_ID_EXISTS:NOT_FOUND',
+    key: 'parent_id',
+    error_id: responseBody.error_id,
+    request_id: responseBody.request_id,
+  });
+});
     test('Content with "status" set to "published"', async () => {
       const contentsRequestBuilder = new RequestBuilder('/api/v1/contents');
       const defaultUser = await contentsRequestBuilder.buildUser();
